@@ -26,8 +26,11 @@ jobs:
         run: test -z "$(gofmt -l . | tee /dev/stderr)"
       - run: go vet ./...
       - run: go test ./...
-      - name: build and run
+      - name: build
         shell: bash
         run: |
-          go build -o drl-test ./cmd/disk-recovery-lab
+          go build -o drl-test$([ "$RUNNER_OS" = Windows ] && echo .exe) ./cmd/disk-recovery-lab
           ./drl-test --version
+      - name: end-to-end smoke test (real binary, real drive listing)
+        shell: bash
+        run: scripts/smoke.sh ./drl-test$([ "$RUNNER_OS" = Windows ] && echo .exe)
