@@ -26,6 +26,12 @@ json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 echo "status:  $(get /api/status | json 'd["features"]["os"], "admin=", d["root"]')"
 echo "drives:  $(get /api/drives | json 'len(d), "drive(s):", ", ".join((x["media"] or x["id"]) + " " + x["device"] for x in d)')"
 test "$(curl -s -o /dev/null -w '%{http_code}' "$B/api/status")" = 401
+# When the runner is already elevated (GitHub's Windows runners are), read a real disk directly.
+if [ "$(get /api/status | json 'd["root"]')" = True ]; then
+  DEV=$(get /api/drives | json 'd[0]["device"]')
+  BODY=$(python3 -c 'import json,sys; print(json.dumps(dict(path=sys.argv[1])))' "$DEV")
+  echo "raw read: $(post /api/probe "$BODY" | json 'd["path"], d["size"], "bytes,", d["scheme"], [p["type"] for p in d["partitions"]][:4]')"
+fi
 
 IMG=$(native "$W/hfs.img")
 BODY=$(python3 -c 'import json,sys; print(json.dumps(dict(path=sys.argv[1], label="smoke", deep=True)))' "$IMG")

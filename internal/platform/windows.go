@@ -73,26 +73,33 @@ func str(v any) string {
 
 // Drives lists physical disks and their partitions through PowerShell.
 func Drives() ([]Drive, error) {
-	// Enums are turned into strings explicitly: Windows PowerShell 5.1 would print numbers.
-	disks, err := powershell(`Get-Disk | Select-Object Number,FriendlyName,Size,IsBoot,IsSystem,@{n='BusType';e={"$($_.BusType)"}},@{n='PartitionStyle';e={"$($_.PartitionStyle)"}} | ConvertTo-Json -Compress`)
+	// One PowerShell start (it is slow, especially on ARM). Enums are turned
+	// into strings explicitly: Windows PowerShell 5.1 would print numbers.
+	raw, err := powershell(`@{
+  disks = @(Get-Disk | Select-Object Number,FriendlyName,Size,IsBoot,IsSystem,@{n='BusType';e={"$($_.BusType)"}},@{n='PartitionStyle';e={"$($_.PartitionStyle)"}})
+  parts = @(Get-Partition | Select-Object DiskNumber,PartitionNumber,Offset,Size,@{n='DriveLetter';e={"$($_.DriveLetter)".Trim([char]0)}},@{n='Type';e={"$($_.Type)"}})
+  vols  = @(Get-Volume | Where-Object DriveLetter | Select-Object @{n='DriveLetter';e={"$($_.DriveLetter)"}},FileSystemLabel,FileSystem,SizeRemaining)
+} | ConvertTo-Json -Compress -Depth 4`)
 	if err != nil {
 		return nil, fmt.Errorf("Get-Disk: %w", err)
 	}
-	parts, _ := powershell(`Get-Partition | Select-Object DiskNumber,PartitionNumber,Offset,Size,@{n='DriveLetter';e={"$($_.DriveLetter)".Trim([char]0)}},@{n='Type';e={"$($_.Type)"}} | ConvertTo-Json -Compress`)
-	vols, _ := powershell(`Get-Volume | Where-Object DriveLetter | Select-Object @{n='DriveLetter';e={"$($_.DriveLetter)"}},FileSystemLabel,FileSystem | ConvertTo-Json -Compress`)
+	var all struct{ Disks, Parts, Vols []map[string]any }
+	if err := json.Unmarshal(raw, &all); err != nil {
+		return nil, fmt.Errorf("drive list: %w", err)
+	}
 	volBy := map[string]map[string]any{}
-	for _, v := range asList(vols) {
+	for _, v := range all.Vols {
 		volBy[str(v["DriveLetter"])] = v
 	}
 	var out []Drive
-	for _, d := range asList(disks) {
+	for _, d := range all.Disks {
 		n := num(d["Number"])
 		bus := fmt.Sprint(d["BusType"])
 		drv := Drive{ID: strconv.FormatInt(n, 10), Device: fmt.Sprintf(`\\.\PhysicalDrive%d`, n), Size: num(d["Size"]),
 			Content: fmt.Sprint(d["PartitionStyle"]), Media: fmt.Sprint(d["FriendlyName"]), Bus: bus,
 			Internal: d["IsBoot"] == true || d["IsSystem"] == true, Removable: bus == "USB" || bus == "SD" || bus == "MMC",
 			Partitions: []Partition{}}
-		for _, p := range asList(parts) {
+		for _, p := range all.Parts {
 			if num(p["DiskNumber"]) != n {
 				continue
 			}
