@@ -1,0 +1,8 @@
+name: Feature request
+description: Suggest a filesystem, file type or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes: {label: What would you like?, description: "For a filesystem or file type, link a public specification if you know one."}
+    validations: {required: true}

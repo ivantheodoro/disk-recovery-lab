@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Disk Recovery Lab
+Comment=Scan drives and recover deleted or unreadable files
+Exec=disk-recovery-lab
+Icon=disk-recovery-lab
+Categories=System;Utility;
+Terminal=false

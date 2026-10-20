@@ -1,0 +1,22 @@
+name: Bug report
+description: Something did not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please do not attach disk images that contain personal data."
+  - type: input
+    id: version
+    attributes: {label: Version, description: "Shown by `--version` or in Releases", placeholder: "0.1.0"}
+    validations: {required: true}
+  - type: dropdown
+    id: os
+    attributes: {label: Operating system, options: [macOS (Apple Silicon), macOS (Intel), Windows x64, Windows ARM, Linux x64, Linux ARM]}
+    validations: {required: true}
+  - type: input
+    id: drive
+    attributes: {label: Drive, description: "Type, connection and filesystem, e.g. 'Samsung T7, USB, HFS+'"}
+  - type: textarea
+    id: what
+    attributes: {label: What happened, description: "Steps, what you expected, what you saw. Include the scan's Details text if relevant."}
+    validations: {required: true}

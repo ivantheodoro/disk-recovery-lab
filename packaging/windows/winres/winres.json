@@ -1,0 +1,33 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": { "0000": ["256.png", "48.png", "32.png", "16.png"] }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": { "name": "DiskRecoveryLab", "version": "0.1.0.0" },
+        "description": "Disk Recovery Lab",
+        "minimum-os": "win10",
+        "execution-level": "as invoker",
+        "dpi-awareness": "per monitor v2",
+        "use-common-controls-v6": true
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": { "file_version": "0.1.0.0", "product_version": "0.1.0.0" },
+        "info": {
+          "0409": {
+            "CompanyName": "Disk Recovery Lab contributors",
+            "FileDescription": "Disk Recovery Lab",
+            "LegalCopyright": "Apache License 2.0",
+            "ProductName": "Disk Recovery Lab",
+            "ProductVersion": "0.1.0"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Disk Recovery Lab: a magnifier scanning a drive platter; the found sector glows -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e293b"/><stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="pl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <circle cx="222" cy="222" r="134" fill="url(#pl)"/>
+  <circle cx="222" cy="222" r="102" fill="none" stroke="#bfdbfe" stroke-opacity=".5" stroke-width="5"/>
+  <circle cx="222" cy="222" r="70" fill="none" stroke="#bfdbfe" stroke-opacity=".5" stroke-width="5"/>
+  <path d="M222 222 L222 88 A134 134 0 0 1 338 155 Z" fill="#fbbf24"/>
+  <circle cx="222" cy="222" r="26" fill="#0b1220"/>
+  <circle cx="222" cy="222" r="9" fill="#93c5fd"/>
+  <circle cx="322" cy="322" r="76" fill="#0b1220" fill-opacity=".35" stroke="#fff" stroke-width="24"/>
+  <path d="M380 380 L428 428" stroke="#fff" stroke-width="42" stroke-linecap="round"/>
+</svg>

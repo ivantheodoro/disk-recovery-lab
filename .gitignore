@@ -1,0 +1,7 @@
+/dist/
+*.img
+!testdata/*.img.gz
+*.tmp
+.DS_Store
+/disk-recovery-lab
+/*.exe

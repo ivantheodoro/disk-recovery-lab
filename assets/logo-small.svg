@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Simplified mark for 16-32 px: no rings, heavier strokes -->
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <circle cx="27" cy="27" r="19" fill="#3b82f6"/>
+  <path d="M27 27 L27 8 A19 19 0 0 1 43.5 17.5 Z" fill="#fbbf24"/>
+  <circle cx="27" cy="27" r="4" fill="#0f172a"/>
+  <circle cx="40" cy="40" r="10" fill="#0f172a" stroke="#fff" stroke-width="5"/>
+  <path d="M47.5 47.5 L54 54" stroke="#fff" stroke-width="6.5" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disk Recovery Lab</title>
+<link rel="icon" href="/assets/logo-small.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:light dark;
+  --bg:#f5f6f8;--panel:#fff;--ink:#15171c;--muted:#626a78;--line:#e4e7ec;--soft:#f0f2f6;
+  --accent:#2563eb;--accent-soft:#e8efff;--accent-ink:#fff;--ok:#15803d;--warn:#b45309;--bad:#c2410c;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1115;--panel:#181b21;--ink:#e9ebef;--muted:#9aa3b2;--line:#2a2e36;--soft:#20242c;
+  --accent:#6b9bff;--accent-soft:#1e2a44;--accent-ink:#0b0d12;--ok:#4ade80;--warn:#fbbf24;--bad:#fb923c;--shadow:none}}
+:root[data-theme="dark"]{
+  --bg:#0f1115;--panel:#181b21;--ink:#e9ebef;--muted:#9aa3b2;--line:#2a2e36;--soft:#20242c;
+  --accent:#6b9bff;--accent-soft:#1e2a44;--accent-ink:#0b0d12;--ok:#4ade80;--warn:#fbbf24;--bad:#fb923c;--shadow:none}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+a{color:var(--accent)}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;padding:0 24px;height:56px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:15px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.brand img{width:24px;height:24px;display:block}
+.tabs{display:flex;gap:4px}
+.tabs button{all:unset;cursor:pointer;padding:6px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+.tabs button.on{background:var(--soft);color:var(--ink)}
+.spacer{flex:1}
+.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok)}.pill.warn{color:var(--warn)}.pill.bad{color:var(--bad)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 120px}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:16px;margin:28px 0 12px}
+.sub{color:var(--muted);margin:0 0 20px}
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-radius:12px;background:var(--accent-soft);margin-bottom:20px}
+.banner code{background:var(--panel);padding:3px 8px;border-radius:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+.drive{display:flex;flex-direction:column;gap:10px}
+.drive .h{display:flex;gap:12px;align-items:center}
+.drive .ico{width:40px;height:40px;border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;flex:none}
+.drive .t{font-weight:600}
+.drive .m{color:var(--muted);font-size:12px}
+.parts{display:flex;flex-direction:column;gap:6px}
+.part{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 10px;border-radius:10px;background:var(--soft);font-size:13px}
+.part .n{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+button.b{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:9px;padding:7px 14px;font-weight:500}
+button.b:hover{border-color:var(--accent)}
+button.p{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.s{padding:4px 10px;font-size:12px}
+button.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+button:disabled{opacity:.45;cursor:default}
+input[type=text],input:not([type]),select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.err{color:var(--bad);background:var(--soft);padding:10px 12px;border-radius:10px;margin:8px 0}
+.note{background:var(--soft);padding:10px 12px;border-radius:10px;margin:8px 0}
+/* results: full-window file browser */
+.bar{height:6px;background:var(--soft);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .4s}
+#vScan{height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden}
+body.docked #vScan{height:calc(100vh - 56px - 61px)}
+.shead{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex:none}
+.shead h1{font-size:17px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shead .meta{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{all:unset;cursor:pointer;width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);flex:none}
+.iconbtn:hover{background:var(--soft);color:var(--ink)}
+.iconbtn.on{background:var(--accent-soft);color:var(--accent)}
+.iconbtn:disabled{opacity:.35;cursor:default;background:none}
+.sprog{height:3px;background:var(--soft);flex:none}.sprog i{display:block;height:100%;background:var(--accent);transition:width .5s}
+.panes{flex:1;min-height:0;display:grid;grid-template-columns:232px minmax(0,1fr) 5px var(--pw,340px)}
+.panes.nopreview{grid-template-columns:232px minmax(0,1fr)}
+.panes.nopreview .split,.panes.nopreview .ppane{display:none}
+.side{overflow:auto;padding:14px 10px;border-right:1px solid var(--line);background:var(--panel)}
+.side h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 10px 6px;font-weight:600}
+.side h4:first-child{margin-top:2px}
+.side button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:9px;padding:6px 10px;border-radius:8px;font-size:13px}
+.side button:hover{background:var(--soft)}
+.side button .c{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+.side button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.side button.on .c{color:var(--accent)}
+.side .dot{width:9px;height:9px;border-radius:3px;flex:none}
+.lpane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.tbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);flex:none}
+.crumbs{display:flex;align-items:center;gap:2px;min-width:0;flex:1;font-size:13px;overflow:hidden;white-space:nowrap}
+.crumbs button{all:unset;cursor:pointer;color:var(--muted);padding:3px 6px;border-radius:6px;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.crumbs button:hover{background:var(--soft);color:var(--ink)}
+.crumbs b{padding:3px 6px;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.crumbs .sep{color:var(--muted);opacity:.6}
+.searchbox{position:relative}
+.searchbox svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.searchbox input{padding-left:30px;width:210px}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+.grid{flex:1;min-height:0;overflow:auto;outline:none;position:relative}
+.grid table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:100%;font-size:13px}
+.grid th{position:sticky;top:0;z-index:2;background:var(--panel);text-align:left;font-weight:500;color:var(--muted);font-size:12px;height:34px;padding:0 10px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+.grid th.sortable{cursor:pointer}
+.grid th.sortable:hover{color:var(--ink)}
+.grid th.sorted{color:var(--ink)}
+.grid th .arr{font-size:10px;margin-left:4px}
+.grid th.r,.grid td.r{text-align:right}
+.grid th{position:sticky}
+.grid th .rz{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;z-index:3}
+.grid th .rz::after{content:"";position:absolute;left:8px;top:9px;bottom:9px;width:1px;background:var(--line)}
+.grid th .rz:hover::after,.grid th .rz.drag::after{background:var(--accent);top:0;bottom:0;width:2px;left:7px}
+.grid td{height:34px;padding:0 10px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.grid td.num{font-variant-numeric:tabular-nums;color:var(--muted)}
+.grid td.loc{direction:rtl;text-align:left}
+.grid tr{cursor:default}
+.grid tbody tr:hover td{background:var(--soft)}
+.grid tr.sel td{background:var(--accent-soft)}
+.grid tr.cur td{box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+.grid tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--accent),inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+.grid td.nm{display:table-cell}
+.nmw{display:flex;align-items:center;gap:8px;min-width:0}
+.nmw svg{flex:none}
+.nmw .t{overflow:hidden;text-overflow:ellipsis}
+.nmw a{color:var(--ink);text-decoration:none;cursor:pointer;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.nmw a:hover{color:var(--accent);text-decoration:underline}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.st i{width:7px;height:7px;border-radius:50%;flex:none;background:var(--muted)}
+.st.ok i{background:var(--ok)}.st.deleted i,.st.warn i{background:var(--warn)}.st.risk i{background:var(--bad)}.st.carved i{background:var(--accent)}
+.st.ok{color:var(--muted)}
+.gfoot{flex:none;padding:6px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;gap:12px}
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.split{cursor:col-resize;background:var(--line);opacity:.0;transition:opacity .15s}
+.split:hover,.split.drag{opacity:1;background:var(--accent)}
+.ppane{border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-width:0;min-height:0}
+.ppane .ph{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.ppane .pb{overflow:auto;padding:14px;flex:1}
+.media{background:var(--soft);border-radius:10px;min-height:180px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px}
+.media img,.media video{max-width:100%;max-height:340px;display:block}
+.media iframe{width:100%;height:380px;border:0;background:#fff}
+.media audio{width:92%}
+.media pre{font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre;overflow:auto;max-height:340px;margin:0;padding:10px;width:100%;align-self:stretch}
+.media .big{color:var(--muted);text-align:center;font-size:13px}
+.pname{font-weight:600;font-size:14px;word-break:break-word;margin-bottom:10px}
+.ppane dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px;margin:0}
+.ppane dt{color:var(--muted)}.ppane dd{margin:0;word-break:break-word}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;height:61px;background:var(--panel);border-top:1px solid var(--line);padding:0 20px;display:flex;align-items:center}
+.dock .in{width:100%;display:flex;gap:12px;align-items:center}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(10,12,16,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.on{display:flex}
+.dlg{background:var(--panel);border-radius:16px;padding:22px;width:min(560px,100%);max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.dlg h3{margin:0 0 6px;font-size:18px}
+.opt{display:flex;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin:8px 0;cursor:pointer}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.opt.dis{opacity:.5;cursor:not-allowed}
+.opt input{margin-top:3px}
+.opt b{display:block}
+table.kv{width:100%;border-collapse:collapse;font-size:13px}
+table.kv td,table.kv th{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+pre.log{font:12px/1.45 ui-monospace,Menlo,monospace;background:var(--soft);padding:10px;border-radius:10px;max-height:220px;overflow:auto}
+details summary{cursor:pointer;color:var(--muted)}
+@media (max-width:1000px){.panes,.panes.nopreview{grid-template-columns:minmax(0,1fr)}.side{display:flex;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--line);padding:8px;max-height:112px}.side h4{display:none}.side button{width:auto}.split,.ppane{display:none}.searchbox input{width:140px}}
+@media (max-width:600px){.top{padding:0 16px;gap:10px}.wrap{padding:20px 16px 140px}.cards{grid-template-columns:1fr}.hide-sm{display:none}.dock{padding:10px 16px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand" onclick="home()"><img src="/assets/logo-small.svg" alt="">Disk Recovery Lab</div>
+  <div class="tabs"><button id="tRecover" class="on" onclick="home()">Recover files</button><button id="tTools" onclick="tools()">Tools</button></div>
+  <div class="spacer"></div>
+  <span id="rootPill" class="pill"></span>
+  <button class="iconbtn" title="Restart app (loads updates)" onclick="serverCtl('restart')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+  <button class="iconbtn" title="Quit app" onclick="serverCtl('quit')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button>
+</div>
+
+<!-- HOME -->
+<div id="vHome" class="wrap">
+  <h1>Recover files from a drive</h1>
+  <p class="sub">1. Choose a drive &nbsp;→&nbsp; 2. Scan it (nothing is written) &nbsp;→&nbsp; 3. Pick the files you want and recover them to another drive.</p>
+  <div id="rootBanner"></div>
+  <div id="prevScans"></div>
+  <h2>Choose a drive</h2>
+  <div id="drives" class="cards"><div class="muted">Looking for drives…</div></div>
+  <h2>Or a disk image</h2>
+  <div class="card row">
+    <input id="imgPath" style="flex:1;min-width:220px" placeholder="/path/to/disk.img (.img, .dd, .raw)">
+    <button class="b p" onclick="askScan(val('imgPath'), val('imgPath').split('/').pop())">Scan image</button>
+  </div>
+  <details id="practiceBox" style="margin-top:20px"><summary>Practice disks (safe to experiment with)</summary>
+    <div class="card" style="margin-top:10px">
+      <p class="muted small" style="margin-top:0">These create small image files in the lab folder with files that were deleted on purpose.</p>
+      <div class="row">
+        <button class="b" onclick="practice('mac')">Mac drive (HFS+, like your SSD)</button>
+        <button class="b" onclick="practice('usb')">USB stick (FAT32)</button>
+        <button class="b" onclick="practice('damaged')">Unreadable USB (wiped boot sector)</button>
+      </div>
+      <div id="practiceOut"></div>
+    </div>
+  </details>
+</div>
+
+<!-- RESULTS -->
+<div id="vScan" style="display:none">
+  <div class="shead">
+    <button class="iconbtn" title="All scans" onclick="home()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div style="min-width:0;flex:1"><h1 id="sTitle"></h1><div class="meta" id="sMeta"></div></div>
+    <span id="sState" class="pill"></span>
+    <button class="b s" onclick="showDetails()">Details</button>
+    <span id="sActions"></span>
+  </div>
+  <div class="sprog" id="sProg" style="display:none"><i></i></div>
+  <div class="panes" id="panes">
+    <nav class="side" id="side"></nav>
+    <section class="lpane">
+      <div class="tbar">
+        <button class="iconbtn" id="upBtn" title="Up one folder (Backspace)" onclick="goUp()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        <div class="crumbs" id="crumbs"></div>
+        <label class="toggle"><input type="checkbox" id="showHidden" onchange="store('hidden',this.checked?1:'');VIEW.offset=0;loadItems()"> Hidden files</label>
+        <div class="searchbox"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="search" placeholder="Search all files" oninput="debSearch()"></div>
+        <button class="iconbtn" id="prevBtn" title="Show/hide preview" onclick="togglePreview()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/></svg></button>
+      </div>
+      <div class="grid" id="grid" tabindex="0"><table id="tbl"><colgroup id="cols"></colgroup><thead><tr id="thead"></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="gfoot" id="gfoot"></div>
+    </section>
+    <div class="split" id="split"></div>
+    <aside class="ppane"><div class="ph">Preview<button class="iconbtn" title="Hide preview" onclick="togglePreview()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="pb" id="prev"></div></aside>
+  </div>
+</div>
+
+<!-- TOOLS -->
+<div id="vTools" class="wrap" style="display:none">
+  <h1>Tools</h1>
+  <p class="sub">Lower-level operations. All of them read the source read-only.</p>
+  <div class="card"><h2 style="margin-top:0">Source</h2>
+    <div class="row"><select id="tPick" style="flex:1;min-width:220px" onchange="if(this.value!=='other'){$('tSrc').value=this.value}$('tSrc').style.display=this.value==='other'?'':'none'"></select>
+      <input id="tSrc" style="flex:1;min-width:220px;display:none" placeholder="/path/to/image.img"><button class="b p" onclick="diagnose()">Diagnose</button></div>
+    <div id="tDiag"></div></div>
+  <div class="cards" style="margin-top:14px">
+    <div class="card" id="cMount"><b>Mount read-only</b><p class="muted small">Asks the system to mount the volume without writing to it. On macOS, disk images are attached read-only and hidden from Finder.</p><button class="b" onclick="tMount()">Mount / attach</button><div id="tMountOut"></div></div>
+    <div class="card" id="cFsck"><b>Check filesystem (read-only)</b><p class="muted small">Runs the system's own checker in no-write mode (<code>fsck -n</code> on macOS/Linux, <code>chkdsk</code> without /f on Windows) to show what is damaged. It never repairs or changes anything.</p><button class="b" onclick="tFsck()">Check</button><div id="tFsckOut"></div></div>
+    <div class="card"><b>Find lost partitions</b><p class="muted small">Searches the whole source for boot sectors and superblocks, including backup copies.</p><button class="b" onclick="tJob('lost','tLostOut')">Search</button><div id="tLostOut"></div></div>
+    <div class="card"><b>Byte-to-byte image</b><p class="muted small">Copies every sector to an image, zero-filling unreadable ones. Use it for failing drives, then scan the image.</p><input id="tImgOut" style="width:100%;margin-bottom:8px" placeholder="output .img path (on another drive)"><button class="b" onclick="tJob('image','tImgJob',{out:val('tImgOut')})">Create image</button><div id="tImgJob"></div></div>
+    <div class="card"><b>Repair a copy</b><p class="muted small">Restores a wiped boot sector from its backup inside a new image, then you can attach that image.</p>
+      <div class="row small"><select id="rpFs"><option>FAT32</option><option>exFAT</option><option>NTFS</option></select><input id="rpStart" size="9" placeholder="start"><input id="rpBackup" size="9" placeholder="backup at"></div>
+      <div class="row" style="margin-top:8px"><button class="b" onclick="tJob('repair','tRepJob',{fs:$('rpFs').value,part_start:val('rpStart')||0,backup_off:val('rpBackup')})">Create repaired copy</button></div><div id="tRepJob"></div></div>
+  </div>
+</div>
+
+<div class="dock" id="dock" style="display:none"><div class="in">
+  <div style="flex:1"><b id="selCount">0 selected</b> <span class="muted" id="selSize"></span></div>
+  <button class="b ghost" onclick="clearSel()">Clear</button>
+  <button class="b p" id="recBtn" onclick="openRecover()">Recover…</button>
+</div></div>
+
+<div class="modal" id="modal"><div class="dlg" id="dlg"></div></div>
+
+<script>
+const $=id=>document.getElementById(id), val=id=>$(id).value.trim();
+const jsa=s=>esc(JSON.stringify(String(s??'')));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hb=n=>{n=+n||0;for(const u of['B','KB','MB','GB','TB']){if(n<1000||u==='TB')return(u==='B'?n:n.toFixed(n<10?2:1))+' '+u;n/=1000}};
+const dt=t=>t?new Date(t*1000).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'';
+const dur=s=>s<60?Math.round(s)+'s':s<3600?Math.round(s/60)+' min':(s/3600).toFixed(1)+' h';
+async function call(path,body){
+  const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({error:r.statusText})); if(!r.ok) throw new Error(j.error||r.statusText); return j;
+}
+const ICON={drive:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2.5"/><circle cx="17" cy="12" r="1"/></svg>',
+  dir:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#e0a43a"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.6l2 2h8.4A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>',
+  file:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="color:var(--muted)"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>'};
+let STATUS={}, S=null, VIEW={folder:0,group:'',deleted:false,offset:0}, SEL=new Map(), POLL=null;
+function store(k,v){try{localStorage.setItem('drl.'+k,v)}catch(e){}}
+function recall(k){try{return localStorage.getItem('drl.'+k)}catch(e){return null}}
+
+function showView(v){for(const x of['vHome','vScan','vTools'])$(x).style.display=x===v?'':'none';
+  $('tRecover').classList.toggle('on',v!=='vTools');$('tTools').classList.toggle('on',v==='vTools');
+  const d=v==='vScan'&&SEL.size;$('dock').style.display=d?'':'none';document.body.classList.toggle('docked',!!d);}
+
+/* ---------------- update check ---------------- */
+let LOADED_VERSION=null;
+async function checkVersion(){
+  try{const st=await call('/api/status');
+    if(!LOADED_VERSION){LOADED_VERSION=st.version;return}
+    if(st.version!==LOADED_VERSION&&!$('updBar')) document.body.insertAdjacentHTML('afterbegin',
+      `<div id="updBar" style="position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:60" class="banner"><b>The app was updated.</b><button class="b s p" onclick="location.reload()">Reload</button></div>`);
+  }catch(e){}
+}
+checkVersion(); setInterval(checkVersion,15000); addEventListener('focus',checkVersion);
+
+/* ---------------- app control ---------------- */
+async function elevate(){
+  try{await call('/api/elevate',{})}catch(e){if(e.message!=='cancelled')alert(e.message);return}
+  document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px"><div><h1>Restarting with administrator rights…</h1><p class="muted">Approve the system prompt. This window reloads by itself.</p></div></div>`;
+  await new Promise(r=>setTimeout(r,2500));
+  for(let i=0;i<240;i++){try{const st=await call('/api/status');if(st.root){location.reload();return}}catch(e){}await new Promise(r=>setTimeout(r,500))}
+}
+async function serverCtl(action){
+  const running=(await call('/api/scans').catch(()=>[])).some(m=>m.running);
+  const warn=running?'\n\nA scan is running: it will be stopped and what it found so far is kept.':'';
+  if(!confirm((action==='quit'?'Quit Disk Recovery Lab?':'Restart Disk Recovery Lab? (Use this after an update.)')+warn)) return;
+  await call('/api/'+action,{}).catch(()=>{});
+  document.body.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px">
+    <div><h1>${action==='quit'?'Disk Recovery Lab has stopped':'Restarting…'}</h1><p class="muted">${action==='quit'?'You can close this window. To start it again, open the app.':'This page reloads by itself in a moment.'}</p></div></div>`;
+  if(action==='restart'){
+    await new Promise(r=>setTimeout(r,1500));
+    for(let i=0;i<40;i++){try{await fetch('/api/status');location.reload();return}catch(e){await new Promise(r=>setTimeout(r,500))}}
+  }
+}
+
+/* ---------------- home ---------------- */
+async function home(){
+  showView('vHome'); clearTimeout(POLL); S=null; store('scan',''); history.replaceState(null,'',location.pathname);
+  STATUS=await call('/api/status');
+  $('rootPill').textContent=STATUS.root?'Administrator: drives readable':'Images only';
+  $('rootPill').className='pill '+(STATUS.root?'ok':'warn');
+  $('rootBanner').innerHTML=STATUS.root?'':`<div class="banner"><b>To scan a real drive, the app needs administrator rights.</b><span class="muted">Without them you can still open disk images and saved scans.</span><button class="b s p" onclick="elevate()">Restart as administrator</button></div>`;
+  $('practiceBox').style.display=STATUS.features.practice?'':'none';
+  loadPrev(); loadDrives();
+}
+async function loadPrev(){
+  const l=await call('/api/scans');
+  $('prevScans').innerHTML=!l.length?'':`<h2>Your scans</h2><div class="cards">${l.map(m=>`<div class="card drive"><div class="h"><div class="ico">${ICON.drive}</div><div style="min-width:0"><div class="t">${esc(m.label)}</div><div class="m">${dt(m.created)} · ${m.files.toLocaleString()} files · ${hb(m.bytes)}</div></div></div>
+    <div class="row"><span class="pill ${m.state==='done'?'ok':m.running?'':'warn'}">${m.running?'Scanning…':m.state==='done'?'Complete':esc(m.state)}</span><div class="spacer"></div>
+    <button class="b s ghost" onclick="delScan('${m.id}')">Delete</button><button class="b s p" onclick="openScan('${m.id}')">Open</button></div></div>`).join('')}</div>`;
+}
+async function delScan(id){if(!confirm('Delete this saved scan? (Your drive and recovered files are not touched.)'))return;try{await call('/api/scans/'+id+'/delete',{})}catch(e){alert(e.message)}loadPrev()}
+async function loadDrives(){
+  try{
+    const ds=(await call('/api/drives')).filter(d=>!d.synthesized).sort((a,b)=>a.internal-b.internal);
+    $('drives').innerHTML=ds.map(d=>{
+      const parts=d.partitions.filter(p=>!/^EFI$/i.test(p.name)&&p.content!=='EFI');
+      return `<div class="card drive"><div class="h"><div class="ico">${ICON.drive}</div><div style="min-width:0;flex:1"><div class="t">${esc(d.media||d.id)}</div><div class="m">${hb(d.size)} · ${esc(d.bus)} · ${d.internal?'internal':'external'} · ${d.id}</div></div>
+        <button class="b p s" onclick="askScan(${jsa(d.device)},${jsa(d.media||d.id)})">Scan drive</button></div>
+        <div class="parts">${parts.map(p=>`<div class="part"><span class="n"><b>${esc(p.name||p.id)}</b> <span class="muted">${esc(p.content)} · ${hb(p.size)}</span></span>
+          ${/APFS/.test(p.content)?'<span class="pill">APFS container</span>':p.mount?'<span class="pill ok">mounted</span>':'<span class="pill warn">not mounted</span>'}
+          ${STATUS.features.mount&&!p.mount&&!/APFS|EFI/.test(p.content)?`<button class="b s ghost" onclick="homeMount(${jsa(p.id)},this)">Mount read-only</button>`:''}
+          <button class="b s" onclick="askScan(${jsa(p.device)},${jsa(p.name||p.id)},${p.offset||0},${p.offset?p.size:0})">Scan</button></div>`).join('')||'<div class="part muted">No partitions the system can see. Scan the whole drive.</div>'}</div>
+        ${d.internal?'<div class="m">This is the computer\'s internal system disk. Encrypted system volumes cannot be scanned meaningfully.</div>':''}</div>`}).join('');
+  }catch(e){$('drives').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function practice(kind){
+  $('practiceOut').innerHTML='<p class="muted">Creating… (about 10 seconds)</p>';
+  try{const r=await call('/api/testdisk',{kind});
+    $('practiceOut').innerHTML=`<div class="note">Created <code>${esc(r.image.split('/').pop())}</code>.<br><b>Still there:</b> ${r.kept.map(esc).join(', ')}<br><b>Deleted:</b> ${r.deleted.map(esc).join(', ')}${r.damaged?'<br><b>Boot sector wiped</b>: the system can no longer read it.':''}</div><button class="b p" onclick="askScan(${jsa(r.image)},${jsa(r.image.split('/').pop())})">Scan it</button>`;
+  }catch(e){$('practiceOut').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+/* ---------------- scan dialog ---------------- */
+function modal(html){$('dlg').innerHTML=html;$('modal').classList.add('on')}
+function closeModal(){$('modal').classList.remove('on')}
+$('modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+function pickOpt(el){el.parentNode.querySelectorAll('.opt').forEach(o=>o.classList.toggle('on',o===el));el.querySelector('input').checked=true}
+function askScan(path,label,offset=0,length=0){
+  if(!path)return alert('Enter a path first');
+  modal(`<h3>Scan ${esc(label)}</h3><p class="muted">The drive is only read. Nothing is recovered yet: you'll choose files afterwards, and the results are saved so you can come back later.</p>
+   <label class="opt on" onclick="pickOpt(this)"><input type="radio" name="d" value="0" checked><div><b>Quick scan: read the file list</b><span class="muted small">Real names and folders, plus deleted entries that are still in the catalog. Usually takes minutes.</span></div></label>
+   <label class="opt" onclick="pickOpt(this)"><input type="radio" name="d" value="1"><div><b>Quick + deep scan</b><span class="muted small">Also searches free space for deleted photos, documents, video, audio and archives by their content. Names are lost. Can take hours on large drives; you can stop it at any time and keep what was found.</span></div></label>
+   <div id="scanErr"></div>
+   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="b ghost" onclick="closeModal()">Cancel</button><button class="b p" onclick="startScan(${jsa(path)},${jsa(label)},${offset},${length})">Start scan</button></div>`);
+}
+async function startScan(path,label,offset=0,length=0){
+  const deep=document.querySelector('input[name=d]:checked').value==='1';
+  try{const m=await call('/api/scans',{path,label,deep,offset,length});closeModal();openScan(m.id)}
+  catch(e){$('scanErr').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+/* ---------------- results ---------------- */
+const COLS=[
+  {id:'name',label:'Name',w:0,flex:3,min:180,sort:'name'},    // w:0 = share the remaining space
+  {id:'where',label:'Location',w:0,flex:2,min:120,flat:true},
+  {id:'items',label:'Items',w:72,min:56,sort:'items',r:1,folders:true},
+  {id:'size',label:'Size',w:90,min:64,sort:'size',r:1},
+  {id:'date',label:'Modified',w:172,min:96,sort:'date'},
+  {id:'type',label:'Kind',w:72,min:56,sort:'type'},
+  {id:'status',label:'Status',w:128,min:80,sort:'status'}];
+const GROUP_COLOR={'Pictures':'#e0729a','Video':'#9b7bea','Audio':'#e79a3c','Documents':'#4a8fe7','Archives':'#a08670','Virtual machines':'#38b2ac','Other':'#8a93a3'};
+const STATUS_LABEL={ok:'On disk',deleted:'Deleted',risk:'Deleted · at risk',carved:'Found by content',warn:'Warning'};
+let WIDTHS={};try{WIDTHS=JSON.parse(recall('cols')||'{}')}catch(e){}
+let ROWS=[],TOTAL=0,LOADING=false,CUR=-1,ANCHOR=-1;
+const isFlat=()=>!!(VIEW.group||VIEW.deleted||val('search'));
+const visCols=()=>COLS.filter(c=>isFlat()?!c.folders:!c.flat);
+function colW(c){
+  if(WIDTHS[c.id]) return WIDTHS[c.id];
+  if(c.w) return c.w;
+  const cols=visCols(), flex=cols.filter(k=>!k.w&&!WIDTHS[k.id]);
+  const fixed=cols.filter(k=>!flex.includes(k)).reduce((a,k)=>a+colW(k),0);
+  const avail=($('grid').clientWidth||900)-40-fixed;
+  return Math.max(c.min,Math.floor(avail*c.flex/flex.reduce((a,k)=>a+k.flex,0)));
+}
+function fitCols(){
+  if(!$('cols').children.length) return;
+  const cols=visCols();
+  cols.forEach((c,i)=>{$('cols').children[i+1].style.width=colW(c)+'px'});
+  $('tbl').style.minWidth=(40+cols.reduce((a,c)=>a+colW(c),0))+'px';
+}
+new ResizeObserver(()=>fitCols()).observe($('grid'));
+
+async function openScan(id){
+  showView('vScan'); store('scan',id); history.replaceState(null,'','#scan='+id); SEL.clear(); updateDock();
+  VIEW={folder:0,group:'',deleted:false,offset:0,sort:'name',dir:'asc'}; $('search').value='';
+  $('showHidden').checked=!!recall('hidden');
+  setPreview(recall('preview')!=='0');
+  const pw=+recall('pw'); if(pw) $('panes').style.setProperty('--pw',pw+'px');
+  showPreview(null);
+  await refreshScan(id,true);
+}
+async function refreshScan(id,first){
+  clearTimeout(POLL);
+  let m; try{m=await call('/api/scans/'+id)}catch(e){return home()}
+  const wasRunning=S&&S.running; S=m;
+  $('sTitle').textContent=m.label;
+  $('sMeta').textContent=`${m.files.toLocaleString()} files · ${hb(m.bytes)} · ${m.source} · scanned ${dt(m.created)}`;
+  const st=m.running?['', `${esc(m.stage)} · ${(m.progress*100).toFixed(1)}%${m.progress>0.02?' · ~'+dur((m.elapsed/m.progress)*(1-m.progress))+' left':''}`]
+    :m.error?['bad','Error']:m.state==='done'?['ok','Scan complete']:['warn',m.state==='cancelled'?'Stopped (partial)':esc(m.state)];
+  $('sState').className='pill '+st[0]; $('sState').innerHTML=st[1];
+  $('sActions').innerHTML=m.running?`<button class="b s" onclick="call('/api/scans/${id}/cancel',{})">Stop</button>`:'';
+  $('sProg').style.display=m.running?'':'none'; $('sProg').firstChild.style.width=(m.progress*100)+'%';
+  if(first||m.running||wasRunning){await loadSide();if(first||!VIEW.offset)await loadItems()}
+  if(m.running) POLL=setTimeout(()=>refreshScan(id),2500);
+}
+function showDetails(){
+  modal(`<h3>Scan details</h3><dl style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin:10px 0">
+    <dt class="muted">Source</dt><dd style="margin:0">${esc(S.source)}</dd><dt class="muted">Started</dt><dd style="margin:0">${dt(S.created)}</dd>
+    <dt class="muted">State</dt><dd style="margin:0">${esc(S.stage||S.state)}</dd><dt class="muted">Found</dt><dd style="margin:0">${S.files.toLocaleString()} files · ${hb(S.bytes)}</dd></dl>
+    ${(S.notes||[]).map(n=>`<div class="note small">${esc(n)}</div>`).join('')}
+    ${S.error?`<div class="err">${esc(S.error)}</div>`:''}<div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b p" onclick="closeModal()">Close</button></div>`);
+}
+async function loadSide(){
+  const s=await call(`/api/scans/${S.id}/summary`);
+  const all=s.groups.reduce((a,g)=>a+g.count,0);
+  const btn=(on,icon,label,cnt,fn,title)=>`<button class="${on?'on':''}" onclick="${fn}" title="${esc(title||'')}">${icon}<span>${label}</span><span class="c">${cnt.toLocaleString()}</span></button>`;
+  const dot=c=>`<span class="dot" style="background:${c}"></span>`;
+  $('side').innerHTML=`<h4>Browse</h4>`+btn(!isFlat(),ICON.dir,'All files',all,"setView({group:'',deleted:false,folder:0})")+
+    `<h4>Categories</h4>`+s.groups.filter(g=>g.count).map(g=>btn(VIEW.group===g.name,dot(GROUP_COLOR[g.name]||'#888'),esc(g.name),g.count,`setView({group:'${g.name}',deleted:false})`,hb(g.size))).join('')+
+    `<h4>Filters</h4>`+btn(VIEW.deleted,dot('var(--warn)'),'Deleted files',s.deleted,"setView({deleted:true,group:''})",hb(s.deleted_size));
+}
+function setView(v){Object.assign(VIEW,v,{offset:0});if(v.group!==undefined||v.deleted!==undefined)$('search').value='';loadSide();loadItems()}
+let searchT; function debSearch(){clearTimeout(searchT);searchT=setTimeout(()=>{VIEW.offset=0;loadSide();loadItems()},250)}
+function goFolder(id){VIEW.folder=id;VIEW.group='';VIEW.deleted=false;VIEW.offset=0;$('search').value='';loadSide();loadItems()}
+function goUp(){if(isFlat()){setView({group:'',deleted:false});$('search').value='';return}const c=VIEW.crumbs||[];if(c.length>1)goFolder(c[c.length-2].id)}
+
+function renderHead(){
+  const cols=visCols();
+  $('cols').innerHTML='<col style="width:40px">'+cols.map(c=>`<col style="width:${colW(c)}px">`).join('')+'<col>';
+  $('tbl').style.minWidth=(40+cols.reduce((a,c)=>a+colW(c),0))+'px';
+  $('thead').innerHTML=`<th style="padding:0 0 0 14px"><input type="checkbox" id="selAll" onclick="selectAll(this.checked)" title="Select all loaded"></th>`+
+    cols.map(c=>`<th class="${c.r?'r ':''}${c.sort?'sortable ':''}${VIEW.sort===c.sort?'sorted':''}" data-c="${c.id}" ${c.sort?`onclick="sortBy('${c.sort}')"`:''}>${c.label}${VIEW.sort===c.sort?`<span class="arr">${VIEW.dir==='asc'?'▲':'▼'}</span>`:''}<span class="rz" data-c="${c.id}" onclick="event.stopPropagation()" ondblclick="resetCol('${c.id}')" title="Drag to resize · double-click to reset"></span></th>`).join('')+'<th></th>';
+}
+function sortBy(k){
+  if(VIEW.sort===k) VIEW.dir=VIEW.dir==='asc'?'desc':'asc';
+  else{VIEW.sort=k;VIEW.dir=['size','date','items'].includes(k)?'desc':'asc'}
+  VIEW.offset=0;loadItems();
+}
+function resetCol(id){delete WIDTHS[id];store('cols',JSON.stringify(WIDTHS));renderHead()}
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest('.rz'); if(!h) return;
+  e.preventDefault(); const c=COLS.find(x=>x.id===h.dataset.c), x0=e.clientX, w0=colW(c);
+  const idx=visCols().indexOf(c)+1, col=$('cols').children[idx]; h.classList.add('drag');
+  const mv=ev=>{WIDTHS[c.id]=Math.max(c.min,Math.round(w0+ev.clientX-x0));col.style.width=WIDTHS[c.id]+'px';
+    $('tbl').style.minWidth=(40+visCols().reduce((a,k)=>a+colW(k),0))+'px'};
+  const up=()=>{h.classList.remove('drag');store('cols',JSON.stringify(WIDTHS));removeEventListener('pointermove',mv);removeEventListener('pointerup',up);
+    addEventListener('click',ev=>ev.stopPropagation(),{capture:true,once:true})};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
+
+function cell(c,it,i){
+  switch(c.id){
+    case 'name': return `<td class="nm" title="${esc(it.name)}"><div class="nmw">${it.kind==='dir'?ICON.dir:ICON.file}${it.kind==='dir'?`<a onclick="event.stopPropagation();goFolder(${it.id})">${esc(it.name)}</a>`:`<span class="t">${esc(it.name)}</span>`}</div></td>`;
+    case 'where': return `<td class="num loc" title="${esc(it.where)}">&lrm;${esc(it.where)}&lrm;</td>`;
+    case 'items': return `<td class="num r">${it.kind==='dir'?it.count.toLocaleString():''}</td>`;
+    case 'size': return `<td class="num r">${hb(it.size)}</td>`;
+    case 'date': return `<td class="num">${dt(it.mtime)}</td>`;
+    case 'type': return `<td class="num">${it.kind==='dir'?'Folder':esc(it.ext?it.ext.toUpperCase():'File')}</td>`;
+    case 'status': return (it.kind==='dir'&&it.status==='ok')?'<td></td>':`<td title="${esc(it.note)}"><span class="st ${it.status}"><i></i>${STATUS_LABEL[it.status]}</span></td>`;
+  }
+}
+function rowHtml(it,i){
+  return `<tr data-i="${i}" class="${SEL.has(it.id)?'sel':''}${i===CUR?' cur':''}" onclick="rowClick(event,${i})" ondblclick="rowOpen(${i})">
+    <td style="padding:0 0 0 14px" onclick="event.stopPropagation();checkClick(event,${i})"><input type="checkbox" ${SEL.has(it.id)?'checked':''} tabindex="-1"></td>${visCols().map(c=>cell(c,it,i)).join('')}<td></td></tr>`;
+}
+async function loadItems(append){
+  if(LOADING&&append) return; LOADING=true;
+  const q=new URLSearchParams({folder:VIEW.folder,group:VIEW.group,deleted:VIEW.deleted?1:0,q:val('search'),sort:VIEW.sort,dir:VIEW.dir,
+    hidden:$('showHidden').checked?1:0,offset:VIEW.offset,limit:200});
+  let r; try{r=await call(`/api/scans/${S.id}/items?`+q)}finally{LOADING=false}
+  if(!append){ROWS=[];CUR=-1;ANCHOR=-1;renderHead();$('grid').scrollTop=0}
+  VIEW.crumbs=r.crumbs; if(!isFlat()) VIEW.folder=r.folder;
+  const base=ROWS.length; ROWS=ROWS.concat(r.items); TOTAL=r.total;
+  const flat=isFlat();
+  $('upBtn').disabled=!flat&&r.crumbs.length<=1;
+  $('crumbs').innerHTML=flat?`<b>${esc(val('search')?'Search: “'+val('search')+'”':VIEW.group||'Deleted files')}</b>`:
+    r.crumbs.map((c,i)=>i===r.crumbs.length-1?`<b title="${esc(c.name)}">${esc(c.name)}</b>`:`<button onclick="goFolder(${c.id})" title="${esc(c.name)}">${esc(c.name)}</button><span class="sep">›</span>`).join('');
+  const html=r.items.map((it,k)=>rowHtml(it,base+k)).join('');
+  if(append) $('rows').insertAdjacentHTML('beforeend',html);
+  else $('rows').innerHTML=html||`<tr><td colspan="${visCols().length+2}"><div class="empty">${S.running?'Nothing here yet. Still scanning…':flat?'No matching files.':'This folder is empty.'}</div></td></tr>`;
+  $('gfoot').innerHTML=`<span>${TOTAL.toLocaleString()} item${TOTAL===1?'':'s'}${ROWS.length<TOTAL?` · ${ROWS.length.toLocaleString()} loaded (scroll for more)`:''}</span><span style="margin-left:auto" class="hide-sm">↑↓ move · Space select · Enter open · ⌫ up · Shift+click range</span>`;
+  if($('selAll')) $('selAll').checked=false;
+}
+$('grid').addEventListener('scroll',()=>{const g=$('grid');if(ROWS.length<TOTAL&&g.scrollTop+g.clientHeight>g.scrollHeight-400&&!LOADING){VIEW.offset=ROWS.length;loadItems(true)}});
+
+function trOf(i){return $('rows').querySelector(`tr[data-i="${i}"]`)}
+function setSel(i,on){const it=ROWS[i];if(!it)return;on?SEL.set(it.id,it):SEL.delete(it.id);const tr=trOf(i);if(tr){tr.classList.toggle('sel',on);tr.querySelector('input').checked=on}}
+function checkClick(e,i){
+  if(!ROWS[i]) return;
+  const on=!SEL.has(ROWS[i].id);
+  if(e.shiftKey&&ANCHOR>=0&&ROWS[ANCHOR]){const [a,b]=[Math.min(ANCHOR,i),Math.max(ANCHOR,i)];for(let k=a;k<=b;k++)setSel(k,on)}
+  else setSel(i,on);
+  ANCHOR=i;updateDock();
+}
+function selectAll(on){ROWS.forEach((_,i)=>setSel(i,on));updateDock()}
+function clearSel(){SEL.clear();$('rows').querySelectorAll('tr.sel').forEach(tr=>{tr.classList.remove('sel');tr.querySelector('input').checked=false});updateDock()}
+function updateDock(){
+  let n=0,b=0;SEL.forEach(it=>{n+=it.kind==='dir'?it.count:1;b+=it.size});
+  $('selCount').textContent=n.toLocaleString()+' file'+(n===1?'':'s')+' selected';$('selSize').textContent=hb(b);
+  const on=SEL.size&&$('vScan').style.display!=='none';
+  $('dock').style.display=on?'':'none';document.body.classList.toggle('docked',!!on);
+}
+function setCur(i,scroll){
+  if(i<0||i>=ROWS.length) return;
+  const old=trOf(CUR); if(old) old.classList.remove('cur');
+  CUR=i; const tr=trOf(i); if(tr){tr.classList.add('cur');if(scroll)tr.scrollIntoView({block:'nearest'})}
+  showPreview(ROWS[i]);
+}
+function rowClick(e,i){
+  if(e.shiftKey&&ANCHOR>=0){checkClick(e,i);return}
+  if(e.metaKey||e.ctrlKey){checkClick(e,i);return}
+  setCur(i);ANCHOR=i;$('grid').focus({preventScroll:true});
+}
+function rowOpen(i){const it=ROWS[i];if(it&&it.kind==='dir')goFolder(it.id)}
+$('grid').addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox') return;
+  if(e.key==='ArrowDown'){e.preventDefault();setCur(Math.min(CUR+1,ROWS.length-1),true)}
+  else if(e.key==='ArrowUp'){e.preventDefault();setCur(Math.max(CUR-1,0),true)}
+  else if(e.key===' '&&CUR>=0){e.preventDefault();checkClick(e,CUR)}
+  else if(e.key==='Enter'&&CUR>=0){e.preventDefault();rowOpen(CUR)}
+  else if(e.key==='Backspace'){e.preventDefault();goUp()}
+  else if(e.key==='a'&&(e.metaKey||e.ctrlKey)){e.preventDefault();selectAll(true)}
+});
+
+function setPreview(on){$('panes').classList.toggle('nopreview',!on);$('prevBtn').classList.toggle('on',on);store('preview',on?'1':'0')}
+function togglePreview(){setPreview($('panes').classList.contains('nopreview'))}
+$('split').addEventListener('pointerdown',e=>{
+  e.preventDefault();const sp=$('split'),x0=e.clientX,w0=$('split').nextElementSibling.getBoundingClientRect().width;sp.classList.add('drag');
+  const mv=ev=>{const w=Math.max(240,Math.min(800,w0-(ev.clientX-x0)));$('panes').style.setProperty('--pw',w+'px');store('pw',w)};
+  const up=()=>{sp.classList.remove('drag');removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};
+  addEventListener('pointermove',mv);addEventListener('pointerup',up);
+});
+function showPreview(it){
+  if(!it){$('prev').innerHTML='<div class="empty" style="padding:40px 10px">Select a file to preview it.<br><span class="small">Images, PDFs, video, audio and text show here.</span></div>';return}
+  const u=`/preview/${S.id}/${it.id}`, ext=it.ext;
+  let media=`<pre id="hexv">Loading…</pre>`;
+  if(it.kind==='dir') media=`<div class="big">${ICON.dir.replace('width="16" height="16"','width="56" height="56"')}<br>${it.count.toLocaleString()} files</div>`;
+  else if(it.size>64e6) media=`<div class="big">Too large to preview (${hb(it.size)})</div>`;
+  else if(it.preview){
+    if(/^(jpe?g|png|gif|bmp|webp|heic|tiff?)$/.test(ext)) media=`<img src="${u}" alt="" onerror="previewFailed(this,'${u}')">`;
+    else if(ext==='pdf') media=`<iframe src="${u}"></iframe>`;
+    else if(/^(mp4|mov|m4v)$/.test(ext)) media=`<video src="${u}" controls></video>`;
+    else if(/^(mp3|wav|m4a|aac)$/.test(ext)) media=`<audio src="${u}" controls></audio>`;
+  }
+  const on=SEL.has(it.id);
+  $('prev').innerHTML=`<div class="media">${media}</div><div class="pname">${esc(it.name)}</div>
+    <dl><dt>Size</dt><dd>${hb(it.size)}</dd>${it.kind==='dir'?`<dt>Items</dt><dd>${it.count.toLocaleString()}</dd>`:''}<dt>Modified</dt><dd>${dt(it.mtime)||'Unknown'}</dd><dt>Kind</dt><dd>${it.kind==='dir'?'Folder':esc((it.ext||'file').toUpperCase()+' · '+it.group)}</dd>
+    <dt>Status</dt><dd><span class="st ${it.status}"><i></i>${STATUS_LABEL[it.status]}</span></dd>${it.where?`<dt>Location</dt><dd>${esc(it.where)}</dd>`:''}</dl>
+    ${it.note?`<div class="note small" style="margin-top:12px">${esc(it.note)}</div>`:''}
+    <div class="row" style="margin-top:14px"><button class="b s ${on?'':'p'}" onclick="const i=ROWS.findIndex(r=>r.id===${it.id});checkClick({},i);showPreview(ROWS[i])">${on?'Remove from selection':'Select for recovery'}</button>${it.kind==='dir'?`<button class="b s" onclick="goFolder(${it.id})">Open folder</button>`:''}</div>`;
+  if($('hexv')) fetch(u).then(async r=>{const t=await r.text();if(!$('hexv'))return;
+    if(r.ok) $('hexv').textContent=t.slice(0,20000); else $('hexv').outerHTML=`<div class="big">${esc(previewError(t))}</div>`});
+}
+function previewError(t){
+  let m=t;try{m=JSON.parse(t).error||t}catch(e){}
+  return /Permission denied|Errno 13/.test(m)?'Preview needs administrator rights: use Restart as administrator on the home screen.':/No such file|Errno 2/.test(m)?'The drive is not connected.':'Preview not available: '+m;
+}
+async function previewFailed(img,u){
+  const r=await fetch(u);const t=r.ok?'This image format cannot be shown in the browser (the file can still be recovered).':previewError(await r.text());
+  img.outerHTML=`<div class="big">${esc(t)}</div>`;
+}
+
+/* ---------------- recover ---------------- */
+async function openRecover(){
+  let n=0,b=0;SEL.forEach(it=>{n+=it.kind==='dir'?it.count:1;b+=it.size});
+  modal(`<h3>Recover ${n.toLocaleString()} files (${hb(b)})</h3><p class="muted">Choose where to save them. It must be a <b>different drive</b> from the one you scanned. Saving onto the same drive can overwrite the files you're trying to get back.</p><div id="dests" class="muted">Checking drives…</div>
+    <label class="opt" onclick="pickOpt(this)"><input type="radio" name="dest" value="custom"><div style="flex:1"><b>Another folder</b><input id="customDest" style="width:100%;margin-top:6px" placeholder="/Volumes/Backup/Recovered"></div></label>
+    <div id="recOut"></div><div class="row" style="justify-content:flex-end;margin-top:14px" id="recBtns"><button class="b ghost" onclick="closeModal()">Cancel</button><button class="b p" onclick="doRecover()">Recover</button></div>`);
+  const ds=await call(`/api/scans/${S.id}/destinations`);
+  $('dests').innerHTML=ds.map((d,i)=>{const bad=d.same_disk||d.free<b;return `<label class="opt ${bad?'dis':''}" ${bad?'':'onclick="pickOpt(this)"'}><input type="radio" name="dest" value="${esc(d.path)}" ${bad?'disabled':''}><div><b>${esc(d.name)}</b><span class="muted small">${esc(d.path)} · ${hb(d.free)} free${d.same_disk?' · <b>same drive as the scan: not allowed</b>':d.free<b?' · not enough space':''}</span></div></label>`}).join('');
+  const first=document.querySelector('#dests .opt:not(.dis)'); if(first) pickOpt(first);
+}
+async function doRecover(){
+  const pick=document.querySelector('input[name=dest]:checked'); if(!pick) return;
+  const dest=pick.value==='custom'?val('customDest'):pick.value;
+  try{const j=await call(`/api/scans/${S.id}/recover`,{ids:[...SEL.keys()],dest});$('recBtns').innerHTML='';pollRec(j.id)}
+  catch(e){$('recOut').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function pollRec(id){
+  const j=await call('/api/jobs/'+id);
+  let h=`<div class="bar" style="margin:12px 0 6px"><i style="width:${j.progress*100}%"></i></div><div class="muted small">${j.state==='running'?'Recovering… '+(j.progress*100).toFixed(0)+'%':''}</div>`;
+  if(j.error) h+=`<div class="err">${esc(j.error)}</div>`;
+  if(j.state==='done'){const r=j.result;h+=`<div class="note"><b>Done.</b> ${r.files.toLocaleString()} files (${hb(r.bytes)}) saved to<br><code>${esc(r.outdir)}</code>${r.errors.length?`<br><span style="color:var(--warn)">${r.errors.length} file(s) had unreadable parts (zero-filled).</span>`:''}</div>
+    <div class="row" style="justify-content:flex-end"><button class="b" onclick="closeModal()">Close</button><button class="b p" onclick="call('/api/reveal',{path:${jsa(r.outdir)}})">Open folder</button></div>`;}
+  else if(j.state==='running') h+=`<div class="row" style="justify-content:flex-end"><button class="b" onclick="call('/api/jobs/${id}/cancel',{})">Stop</button></div>`;
+  else h+=`<div class="row" style="justify-content:flex-end"><button class="b" onclick="closeModal()">Close</button></div>`;
+  $('recOut').innerHTML=h;
+  if(j.state==='running') setTimeout(()=>pollRec(id),700);
+}
+
+/* ---------------- tools ---------------- */
+async function tools(pre){
+  showView('vTools');clearTimeout(POLL);
+  const ds=(await call('/api/drives').catch(()=>[])).filter(d=>!d.synthesized).sort((a,b)=>a.internal-b.internal);
+  $('cMount').style.display=STATUS.features.mount||STATUS.features.attach?'':'none';
+  $('cFsck').style.display=STATUS.features.fsck?'':'none';
+  const opts=['<option value="">Choose a drive or partition…</option>'];
+  ds.forEach(d=>{opts.push(`<option value="${esc(d.device)}" data-id="${esc(d.id)}">${esc(d.media||d.id)} · whole drive (${hb(d.size)})</option>`);
+    d.partitions.filter(p=>!p.offset).forEach(p=>opts.push(`<option value="${esc(p.device)}" data-id="${esc(p.id)}">&nbsp;&nbsp;↳ ${esc(p.name||p.id)} · ${esc(p.content)} · ${hb(p.size)} (${esc(p.id)})</option>`));
+    d.partitions.filter(p=>p.offset).forEach(p=>opts.push(`<option value="${esc(p.device)}" data-id="${esc(p.id)}" disabled>&nbsp;&nbsp;↳ ${esc(p.name||p.id)} · ${esc(p.content)} (use the whole drive here)</option>`))});
+  opts.push('<option value="other">Disk image file…</option>');
+  $('tPick').innerHTML=opts.join('');
+  const want=pre||recall('tsrc')||'';
+  if(want){const has=[...$('tPick').options].some(o=>o.value===want);$('tPick').value=has?want:'other';$('tSrc').value=want;$('tSrc').style.display=has?'none':''}
+}
+function tSource(){const v=val('tSrc');if(!v)throw new Error('Choose a drive, partition or image file at the top first.');store('tsrc',v);return v}
+function tId(){const o=$('tPick').selectedOptions[0];return o&&o.dataset.id?o.dataset.id:''}
+const isDev=p=>/^\/dev\/|^\\\\\.\\/.test(p);
+async function diagnose(){
+  try{const src=tSource();$('tDiag').innerHTML='<p class="muted">Reading…</p>';const p=await call('/api/probe',{path:src});
+    const fs=f=>f?`<span class="pill ${f.native==='no'?'bad':f.native==='read-only'?'warn':'ok'}">${esc(f.fs)}</span> <span class="muted small">${esc(f.detail)} · macOS support: ${esc(f.native)}</span>`:'<span class="pill bad">unrecognised</span>';
+    $('tDiag').innerHTML=`<p class="small muted">${hb(p.size)} · partition map: ${esc(p.scheme)}</p>${p.verdict.map(v=>`<div class="note small">${esc(v)}</div>`).join('')}
+      ${p.whole_disk_fs?`<p>Whole disk: ${fs(p.whole_disk_fs)}</p>`:''}
+      ${p.partitions.length?`<table class="kv"><tr><th>#</th><th>Name</th><th>Offset</th><th>Size</th><th>Filesystem</th></tr>${p.partitions.map(x=>`<tr><td>${x.index}</td><td>${esc(x.name||x.type)}</td><td class="small">${x.offset}</td><td>${hb(x.size)}</td><td>${fs(x.fs)}</td></tr>`).join('')}</table>`:''}`;
+  }catch(e){$('tDiag').innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function tMount(){
+  const out=$('tMountOut');
+  try{
+    const src=tSource(); out.innerHTML='<p class="muted small">Mounting…</p>';
+    if(isDev(src)){out.innerHTML=mountMsg(await call('/api/mount',{id:tId()||src}))}
+    else{const r=await call('/api/attach',{path:src});out.innerHTML=(r.note?`<div class="note small">${esc(r.note)}</div>`:'')+r.devices.map(d=>`<div class="small"><code>${esc(d.dev)}</code> ${d.mount?`mounted at <a href="#" onclick="call('/api/reveal',{path:${jsa(d.mount)}});return false">${esc(d.mount)}</a>`:'not mounted'} <button class="b s" onclick="call('/api/detach',{dev:${jsa(d.dev)}}).then(()=>this.parentNode.remove())">Detach</button></div>`).join('')}
+  }catch(e){out.innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+function mountMsg(r){
+  return r.ok?`<div class="note small"><b>Mounted read-only</b>${r.mount?` at <a href="#" onclick="call('/api/reveal',{path:${jsa(r.mount)}});return false">${esc(r.mount)}</a>`:''}. Copy what you need, then eject it.</div>`
+    :`<div class="err small"><b>It could not be mounted.</b> ${esc(r.explain)}<details style="margin-top:6px"><summary>System output</summary><pre class="log">${esc(r.output)}</pre></details></div>`;
+}
+async function tFsck(){
+  const out=$('tFsckOut');
+  try{const src=tSource();if(!isDev(src))throw new Error('The check works on drives and partitions, not image files.');
+    const j=await call('/api/fsck',{id:tId()||src});fsckPoll(j.id)}catch(e){out.innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function fsckPoll(id){
+  const j=await call('/api/jobs/'+id);let h='';
+  if(j.state==='running') h=`<p class="muted small">Checking… this can take a while on large drives. <button class="b s" onclick="call('/api/jobs/${id}/cancel',{})">Stop</button></p>`;
+  if(j.error) h+=`<div class="err">${esc(j.error)}</div>`;
+  if(j.state==='done') h+=j.result.ok?`<div class="note small"><b>No problems found</b> (${esc(j.result.filesystem)}). If it still won't mount, try Mount again.</div>`
+    :`<div class="err small"><b>The checker found damage</b> (exit code ${j.result.exit}). The lines below say what. Your files can still be recovered by scanning the partition from the home screen.</div>`;
+  h+=`<pre class="log">${esc(j.logs.join('\n'))}</pre>`;
+  $('tFsckOut').innerHTML=h;
+  if(j.state==='running') setTimeout(()=>fsckPoll(id),1000);
+}
+async function homeMount(id,btn){
+  btn.disabled=true;btn.textContent='Mounting…';
+  try{const r=await call('/api/mount',{id});
+    if(r.ok){loadDrives();if(r.mount)call('/api/reveal',{path:r.mount})}
+    else{modal(`<h3>Couldn't mount ${esc(id)}</h3>${mountMsg(r)}<div class="row" style="justify-content:flex-end;margin-top:14px"><button class="b" onclick="closeModal();tools()">Open Tools</button><button class="b p" onclick="closeModal()">OK</button></div>`);btn.disabled=false;btn.textContent='Mount read-only'}
+  }catch(e){alert(e.message);btn.disabled=false;btn.textContent='Mount read-only'}
+}
+async function tJob(kind,box,extra={}){
+  try{const j=await call('/api/tools',{kind,path:tSource(),...extra});tPoll(j.id,box)}catch(e){$(box).innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+async function tPoll(id,box){
+  const j=await call('/api/jobs/'+id); let h=`<div class="bar" style="margin:10px 0"><i style="width:${j.progress*100}%"></i></div>`;
+  if(j.error) h+=`<div class="err">${esc(j.error)}</div>`;
+  if(j.state==='done'){const r=j.result;
+    if(kind(j)==='lost') h+=r.partitions.length?r.partitions.map(p=>`<div class="note small"><b>${esc(p.fs.fs)}</b> at offset ${p.offset} · ${esc(p.fs.detail)}${p.note?'<br>'+esc(p.note)+` <button class="b s" onclick="$('rpFs').value=${jsa(p.fs.fs)};$('rpStart').value=${p.backup_of};$('rpBackup').value=${p.offset}">Use for repair</button>`:''}</div>`).join(''):'<div class="note small">Nothing found.</div>';
+    else h+=`<div class="note small">Written <code>${esc(r.image)}</code> · ${r.bad_sectors} bad sector(s). <button class="b s" onclick="tools(${jsa(r.image)}).then(tMount)">Attach</button> <button class="b s" onclick="askScan(${jsa(r.image)},${jsa(r.image.split('/').pop())})">Scan</button></div>`;
+  } else if(j.state==='running'){h+=`<button class="b s" onclick="call('/api/jobs/${id}/cancel',{})">Stop</button>`;setTimeout(()=>tPoll(id,box),800)}
+  $(box).innerHTML=h;
+}
+const kind=j=>j.kind;
+
+(async()=>{const hash=location.hash,h=hash.match(/^#scan=([\w-]+)/);const s=h?h[1]:recall('scan');await home();if(hash==='#tools')return tools();if(s)openScan(s)})();
+</script>
+</body>
+</html>
