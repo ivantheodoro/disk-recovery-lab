@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -169,9 +170,13 @@ func TestLostPartitionAndRepair(t *testing.T) {
 }
 
 func TestSafeName(t *testing.T) {
-	for in, want := range map[string]string{"a/b": "a:b", "..": "_..", "": "_"} {
-		if got := SafeName(in); got != want && !(strings.Contains(in, "/") && got == "a_b") {
-			t.Errorf("SafeName(%q) = %q, want %q", in, got, want)
+	want := map[string]string{"a/b": "a:b", "..": "_..", "": "_", "ok.txt": "ok.txt"}
+	if runtime.GOOS == "windows" { // ':' is invalid and trailing dots are dropped by Windows
+		want = map[string]string{"a/b": "a_b", "..": "_", "": "_", "ok.txt": "ok.txt", "CON.txt": "_CON.txt", "a?b": "a_b"}
+	}
+	for in, w := range want {
+		if got := SafeName(in); got != w {
+			t.Errorf("SafeName(%q) = %q, want %q", in, got, w)
 		}
 	}
 }
